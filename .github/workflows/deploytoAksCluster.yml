@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: kubernetcontainerregistry.azurecr.io
+        username: ${{ secrets.acr_kubernetcontainerregistry_username }}
+        password: ${{ secrets.acr_kubernetcontainerregistry_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/OrderItemWebAPI" -f  "OrderItemWebAPI/Dockerfile" -t kubernetcontainerregistry.azurecr.io/myfirstkubernetcluster:${{ github.sha }} --label dockerfile-path=OrderItemWebAPI/Dockerfile
+        docker push kubernetcontainerregistry.azurecr.io/myfirstkubernetcluster:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_myfirstkubernetcluster_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep myfirstkubernetcluster8a40 | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace myfirstkubernetcluster8a40`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: myfirstkubernetcluster8a40
+        container-registry-url: kubernetcontainerregistry.azurecr.io
+        container-registry-username: ${{ secrets.acr_kubernetcontainerregistry_username }}
+        container-registry-password: ${{ secrets.acr_kubernetcontainerregistry_password }}
+        secret-name: myfirstkuberdockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: myfirstkubernetcluster8a40
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          kubernetcontainerregistry.azurecr.io/myfirstkubernetcluster:${{ github.sha }}
+        imagepullsecrets: |
+          myfirstkuberdockerauth
