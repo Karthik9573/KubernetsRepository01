@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "myfirstkubernetcluster-0297"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "myfirstkubernetcluster-0297"
+  template:
+    metadata:
+      labels:
+        app: "myfirstkubernetcluster-0297"
+    spec:
+      containers:
+        - name: "myfirstkubernetcluster-0297"
+          image: "kubernetcontainerregistry.azurecr.io/myfirstkubernetcluster"
+          ports:
+          - containerPort: 80
